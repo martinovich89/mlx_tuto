@@ -1,0 +1,35 @@
+GETTING STARTED WITH MLX
+
+
+I. About pointers
+
+	a. static cast vs interpret cast
+
+	b. example with int and char.
+
+II. About colors
+
+	a. little endian vs big endian
+
+	b. what colors are made of
+
+	c. int and char reminder (See 1./b.)
+
+III. Use MLX
+
+	a. init mlx structs (mlx + win + img)
+
+	b. events
+
+	c. loop
+
+
+initialisation && clear
+
+pixel_put && image_to_window
+
+xpm_file_to_image
+
+loop && loop_hook
+
+events
