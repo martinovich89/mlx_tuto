@@ -1,0 +1,8 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/tmp/mlx_tuto'
+make -C ./libs/libft/
+make -C ./libs/mlx/
+gcc -Wall -Wextra -Werror -c srcs/main.c -L./libs/libft/ -L./libs/mlx/ -lmlx -lft -lXext -lX11 -lm -lz -o srcs/main.o
+gcc -Wall -Wextra -Werror ./srcs/main.o -L./libs/libft/ -L./libs/mlx/ -lmlx -lft -lXext -lX11 -lm -lz -o mlx_test
+make: Leaving directory '/tmp/mlx_tuto'
+ 
