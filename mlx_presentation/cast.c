@@ -5,9 +5,34 @@
 
 int main(void)
 {
-	unsigned char array[4] = {255, 255, 255, 255};
-	printf("%d\n", (int)array[0]);
-	printf("%d\n", *(int *)&array[0]);
-	printf("dst[0]<<0 = %x | dst[1]<<8 = %x | dst[2]<<16 = %x | dst[3]<<24 = %x\n", (unsigned int)(array[0])<<0, (unsigned int)(array[1])<<8, (unsigned int)(array[2])<<16, (unsigned int)(array[3])<<24);
+	printf("En unsigned int\n");
+
+	unsigned char array1[4] = {0, 0, 0, 1};
+	printf("%x\n", array1[3]);
+
+	unsigned char array2[4] = {0, 0, 0, 255};
+	printf("%x\n", (unsigned int)array2[3]);
+
+	unsigned char array3[4] = {1, 0, 0, 0};
+	printf("%x\n", (unsigned int)array3[0]);
+
+	printf("\nEn unsigned int *\n");
+
+	unsigned int color = *(unsigned int *)&array1[0];
+	printf("%x\n", color);
+
+	color = *(unsigned int *)&array2[0];
+	printf("%x\n", color);
+
+	color = *(unsigned int *)&array3[0];
+	printf("%x\n", color);
+
+	printf("\nEn unsigned char *\n");
+
+	unsigned int *ptr = &color;
+	printf("%x\n", ((unsigned char *)(ptr))[0]);
+	printf("%x\n", ((unsigned char *)(ptr))[1]);
+	printf("%x\n", ((unsigned char *)(ptr))[2]);
+	printf("%x\n", ((unsigned char *)(ptr))[3]);
 	return (0);
 }
