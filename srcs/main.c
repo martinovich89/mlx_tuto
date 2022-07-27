@@ -10,19 +10,32 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 
-#define MAP_WIDTH 6
-#define MAP_HEIGHT 7
+#define MAP_WIDTH 20
+#define MAP_HEIGHT 20
 
 #define PI 3.1415926535
 
 char	map[MAP_HEIGHT][MAP_WIDTH] = {
-	{1, 1, 1, 1, 1, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 1, 1, 1, 1, 1}
+	{'1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', 'S', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', 'S', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'}
 };
 
 typedef struct	s_intpos
@@ -75,6 +88,20 @@ typedef struct	s_data
 	int		h;
 }				t_data;
 
+typedef struct	s_sprite
+{
+	t_data			tex;
+	t_vector		pos;
+	double			dist;
+	struct s_sprite	*next;
+}				t_sprite;
+
+typedef struct	s_list
+{
+	t_sprite	*first;
+	size_t		size;
+}				t_list;
+
 typedef struct	s_struct
 {
 	void		*mlx;
@@ -88,9 +115,23 @@ typedef struct	s_struct
 	int			strafe_right;
 	int			left;
 	int			right;
+	t_list		sprites;
+	t_list		sorted_sprites;
 	t_data		tex;
 	t_rndr		rndr;
 }				t_struct;
+
+void	ft_memdel(void *ptr)
+{
+	void **recup;
+
+	recup = ptr;
+	if (recup && *recup)
+	{
+		free(*recup);
+		*recup = NULL;
+	}
+}
 
 void	my_mlx_pixel_put(t_data *data, int x, int y, int color)
 {
@@ -218,8 +259,8 @@ void	rotation(t_vector *dir, double angle)
 
 void	translation(t_vector *pos, t_vector *dir)
 {
-	pos->x += dir->x * 0.2;
-	pos->y += dir->y * 0.2;
+	pos->x += dir->x * 0.08;
+	pos->y += dir->y * 0.08;
 }
 
 void	pre_dda_calc(t_struct *cub)
@@ -264,7 +305,7 @@ void	dda(t_struct *cub)
 			cub->rc.map.y += cub->rc.step.y;
 			cub->rc.side = 1;
 		}
-		if (map[cub->rc.map.y][cub->rc.map.x] > 0)
+		if (map[cub->rc.map.y][cub->rc.map.x] != '0')
 			cub->rc.hit = 1;
 	}
 }
@@ -310,7 +351,7 @@ void	rc_calcs(t_struct *cub)
 int	is_valid_move(t_vector pos, t_vector dir)
 {
 	translation(&pos, &dir);
-	if (map[(int)(pos.y + dir.y * 0.2)][(int)(pos.x + dir.x * 0.2)] == 0)
+	if (map[(int)(pos.y + dir.y * 0.2)][(int)(pos.x + dir.x * 0.2)] == '0')
 		return (1);
 	return (0);
 }
@@ -337,9 +378,9 @@ void	apply_moves(t_struct *cub)
 	if (cub->strafe_left)
 		move(&cub->rc.pos, &cub->rc.dir, 3);
 	if (cub->left)
-		rotation(&cub->rc.dir, -PI/16);
+		rotation(&cub->rc.dir, -PI/50);
 	if (cub->right)
-		rotation(&cub->rc.dir, PI/16);
+		rotation(&cub->rc.dir, PI/50);
 }
 
 void	plane_calc(t_struct *cub)
@@ -373,30 +414,159 @@ void	ray_casting(t_struct *cub)
 	// CHECK CAMPLANE VALUES
 }
 
+/*
+t_sprite	*get_next_farthest(t_struct *cub, t_list *sprites)
+{
+	t_sprite	*farthest;
+	t_sprite	*iter;
+
+	iter = sprites->first;
+
+}
+
+void	make_dist_list(t_struct *cub, t_list *sprites)
+{
+	t_sprite	*iter;
+	t_sprite	*farthest;
+	size_t		dist;
+
+	dist = ~0;
+	iter = sprites->first;
+	while (iter)
+	{
+		farthest = get_farthest(cub, sprites);
+		if (!cub->dist_list.first)
+		{
+			farthest = iter;
+
+		}
+		iter = iter->next;
+	}
+}*/
+
+void	print_list(t_list *list)
+{
+	t_sprite *iter;
+
+	iter = list->first;
+	while (iter)
+	{
+		printf("iter.pos.x = %lf | iter.pos.y = %lf\n", iter->pos.x, iter->pos.y);
+		iter = iter->next;
+	}
+}
+
+void	push_back(t_list *list, t_sprite *elem)
+{
+	t_sprite *iter;
+
+	iter = list->first;
+	while (iter && iter->next)
+		iter = iter->next;
+	if (list->first)
+		iter->next = elem;
+	else
+		list->first = elem;
+}
+
+void	remove_sprite(t_list *list, t_sprite *elem)
+{
+	t_sprite *iter;
+	t_sprite *tmp;
+
+	iter = list->first;
+	if (list->first == elem)
+	{
+		tmp = list->first->next;
+		list->first->next = NULL;
+		list->first = tmp;
+	}
+	else
+	{
+		while (iter && iter->next)
+		{
+			if (iter->next == elem)
+				iter->next = iter->next->next;
+			iter = iter->next;
+		}
+	}
+}
+
+void	transfer_farthest(t_list *src, t_list *dst)
+{
+	t_sprite *farthest;
+	t_sprite *iter;
+
+	farthest = src->first;
+	iter = src->first;
+	while (iter)
+	{
+		if (farthest->dist < iter->dist)
+			farthest = iter;
+		iter = iter->next;
+	}
+	push_back(dst, farthest);
+	remove_sprite(src, farthest);
+}
+
+void	sort_sprites(t_struct *cub)
+{
+	while (cub->sprites.first)
+	{
+		transfer_farthest(&cub->sprites, &cub->sorted_sprites);
+	}
+	cub->sprites.first = cub->sorted_sprites.first;
+	cub->sorted_sprites.first = NULL;
+}
+
+void	update_sprites(t_struct *cub)
+{
+	t_sprite *iter;
+	t_vector *pos;
+
+	iter = cub->sprites.first;
+	pos = &cub->rc.pos;
+	while (iter)
+	{
+		iter->dist = sqrt(pow(iter->pos.x - pos->x, 2) + pow(iter->pos.y - pos->y, 2));
+		iter = iter->next;
+	}
+}
+/*
+void	perpSprites_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter->dist
+	}
+}*/
+
+void	draw_sprites(t_struct *cub)
+{
+	update_sprites(cub);
+	sort_sprites(cub);
+//	perpSprite_calc(cub);
+}
+
 int	render_frame(t_struct *cub)
 {
 	apply_moves(cub);
 	clear_image(cub);
 	ray_casting(cub);
+	draw_sprites(cub);
 	mlx_put_image_to_window(cub->mlx, cub->win, cub->img.img, 0, 0);
 	return (0);
 }
 
 void	init_vars(t_struct *cub)
 {
-	ft_bzero(&cub->rc, sizeof(t_rc));
-	ft_bzero(&cub->rndr, sizeof(t_rndr));
+	ft_bzero(cub, sizeof(t_struct));
 	cub->rc.pos.x = 3.5;
 	cub->rc.pos.y = 3.5;
-	cub->rc.dir.x = 0;
 	cub->rc.dir.y = -1;
-	cub->rc.hit = 0;
-	cub->up = 0;
-	cub->strafe_left = 0;
-	cub->down = 0;
-	cub->strafe_right = 0;
-	cub->left = 0;
-	cub->right = 0;
 }
 
 int	destroy_event(t_struct *cub)
@@ -441,13 +611,97 @@ int	keyrelease(int key, t_struct *cub)
 	return (0);
 }
 
+int init_sprite_list(t_list *sprites, size_t x, size_t y)
+{
+	sprites->first = ft_calloc(1, sizeof(t_sprite));
+	sprites->size++;
+	sprites->first->pos.x = x + 0.5;
+	sprites->first->pos.y = y + 0.5;
+	return (0);
+}
+
+int	pushback_sprite(t_list *sprites, size_t x, size_t y)
+{
+	t_sprite *iter;
+
+	iter = sprites->first;
+	while (iter->next)
+		iter = iter->next;
+	iter->next = ft_calloc(1, sizeof(t_sprite));
+	sprites->size++;
+	iter->next->pos.x = x + 0.5;
+	iter->next->pos.y = y + 0.5;
+	return (0);
+}
+
+int	add_sprite(t_list *sprites, size_t x, size_t y)
+{
+	if (sprites->size == 0)
+		init_sprite_list(sprites, x, y);
+	else
+		pushback_sprite(sprites, x, y);
+	sprites->size++;
+	return (0);
+}
+
+void	set_sprites(t_struct *cub)
+{
+	size_t	i;
+	size_t	j;
+
+	i = 0;
+	while (i < 20)
+	{
+		j = 0;
+		while (j < 20)
+		{
+			if (map[i][j] == 'S')
+			{
+				add_sprite(&cub->sprites, j, i);
+				map[i][j] = '0';
+			}
+			j++;
+		}
+		i++;
+	}
+}
+
+void	destroy_sprites(t_struct *cub)
+{
+	t_sprite *iter;
+	t_sprite *tmp;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		tmp = iter->next;
+		ft_memdel(&iter);
+		iter = tmp;
+	}
+}
+
+void	print_sprites_infos(t_list *sprites)
+{
+	t_sprite	*iter;
+	size_t		i;
+
+	iter = sprites->first;
+	i = 0;
+	while (iter)
+	{
+		iter = iter->next;
+		i++;
+	}
+}
+
 int main(void)
 {
 	t_struct cub;
 
 	// INIT MY STRUCT
 	init_vars(&cub);
-	cub.background = 0x00802020;
+	set_sprites(&cub);
+	print_sprites_infos(&cub.sprites);
 
 	// INIT MLX
 	cub.mlx = mlx_init();
@@ -467,6 +721,7 @@ int main(void)
 	mlx_loop(cub.mlx);
 
 	// CLEAR MLX;
+	destroy_sprites(&cub);
 	mlx_destroy_image(cub.mlx, cub.tex.img);
 	mlx_destroy_image(cub.mlx, cub.img.img);
 	mlx_destroy_window(cub.mlx, cub.win);

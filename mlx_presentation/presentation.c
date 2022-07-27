@@ -8,7 +8,7 @@
 
 #define WIDTH 800
 #define HEIGHT 600
-#define CELL_SIZE 50
+#define CELL_SIZE 200
 
 typedef struct s_pos
 {
