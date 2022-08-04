@@ -40,6 +40,12 @@ char	map[MAP_HEIGHT][MAP_WIDTH] = {
 	{'1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'}
 };
 
+typedef struct	s_pos
+{
+	double x;
+	double y;
+}	t_pos;
+
 typedef struct	s_intpos
 {
 	int	x;
@@ -50,6 +56,7 @@ typedef struct	s_vector
 {
 	double	x;
 	double	y;
+	t_pos	o;
 	double	dist;
 }				t_vector;
 
@@ -105,6 +112,7 @@ typedef struct	s_sprite
 	double			ray_spDelta;
 	int				draw_start;
 	int				draw_end;
+	int				spriteX;
 	struct s_sprite	*next;
 }				t_sprite;
 
@@ -149,10 +157,10 @@ void	*ft_memdup(void *ptr, size_t size)
 {
 	void	*new;
 
-	new = malloc(sizeof(size));
+	new = ft_calloc(1, sizeof(size));
 	if (!new)
 		return (NULL);
-	printf("");
+	printf("%p | %p | %zu\n", new, ptr, size);
 	ft_memcpy(new, ptr, size);
 	return (new);
 }
@@ -290,11 +298,11 @@ void	wallX_calc(t_struct *cub)
 		cub->rndr.wallX = cub->rc.pos.x + cub->rc.perpWallDist * cub->rc.ray.x;
     cub->rndr.wallX -= floor((cub->rndr.wallX));
 }
-
+/*
 int		is_sprite_int_fov(t_struct *cub, t_sprite *srite)
 {
-	
-}
+	if (cub->rc.camX < 0)
+}*/
 
 t_list	*get_sprites_to_draw(t_struct *cub)
 {
@@ -308,7 +316,7 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 	iter = cub->sprites.first;
 	while (iter)
 	{
-		if (is_sprite_in_fov(cub, iter))
+		if (iter->ray_spDelta < SPRITE_THEORETICAL_WIDTH / 2 && iter->perpDist > MIN_SPRITE_DRAW_RANGE)
 		{
 			new_elem = ft_memdup(iter, sizeof(t_sprite));
 			new_elem->next = NULL;
@@ -339,7 +347,7 @@ void	draw_sprites(t_struct *cub, size_t x)
 	t_sprite	*iter;
 	size_t		i;
 	double		ratio;
-	t_vector	tex;
+	double		texY;
 
 	list = get_sprites_to_draw(cub);
 	iter = list->first;
@@ -347,27 +355,33 @@ void	draw_sprites(t_struct *cub, size_t x)
 	{
 		i = iter->draw_start;
 		ratio = (double)iter->tex.w / (double)iter->height;
-		tex.x = (double)x * ratio;
-		tex.y = (double)i * ratio;
+		texY = (double)i * ratio;
 		while (i < HEIGHT && i < (size_t)iter->draw_end)
 		{
-			my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, tex.x, tex.y));
+			my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, iter->spriteX, texY));
 			i++;
-			tex.y += ratio;
-			tex.y -= (tex.y > HEIGHT);
+			texY += ratio;
+			texY -= (texY > HEIGHT);
 		}
 		iter = iter->next;
 	}
 	clear_list(list);
 }
 
-void	sprite_calcs(t_struct *cub)
+// Thanks to -->> https://alienryderflex.com/point_left_of_ray/ <<-- for the formula
+void	spriteX_calc(t_struct *cub)
 {
 	t_sprite	*iter;
+	int left;
 
 	iter = cub->sprites.first;
 	while (iter)
 	{
+		left = (iter->pos.y - cub->rc.pos.y)*(cub->rc.ray.x) > (iter->pos.x - cub->rc.pos.x)*(cub->rc.ray.y);
+		if (left)
+			iter->spriteX = 0.5 * iter->tex.w - iter->ray_spDelta;
+		else
+			iter->spriteX = 0.5 * iter->tex.w + iter->ray_spDelta;
 		iter = iter->next;
 	}
 }
@@ -379,6 +393,7 @@ void	draw_stripe(t_struct *cub, size_t x)
 	draw_ceiling(cub, x);
 	draw_wall(cub, x);
 	draw_floor(cub, x);
+	spriteX_calc(cub);
 	draw_sprites(cub, x);
 
 }
