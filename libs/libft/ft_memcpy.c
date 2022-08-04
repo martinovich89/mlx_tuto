@@ -11,7 +11,7 @@
 /* ************************************************************************** */
 
 #include "libft.h"
-#include <string.h>
+//#include <stdio.h>
 
 void	*ft_memcpy(void *dst, const void *src, size_t n)
 {
@@ -23,7 +23,10 @@ void	*ft_memcpy(void *dst, const void *src, size_t n)
 	d = (char *)dst;
 	s = (char *)src;
 	while (--n)
+	{
+//		printf("%zu\n", ptrdiff_t(d) - ptrdiff_t(dst));
 		*d++ = *s++;
+	}
 	*d = *s;
 	return (dst);
 }

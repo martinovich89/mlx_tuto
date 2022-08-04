@@ -12,6 +12,8 @@
 
 #define MAP_WIDTH 20
 #define MAP_HEIGHT 20
+#define SPRITE_THEORETICAL_WIDTH 1
+#define MIN_SPRITE_DRAW_RANGE 0.05
 
 #define PI 3.1415926535
 
@@ -48,6 +50,7 @@ typedef struct	s_vector
 {
 	double	x;
 	double	y;
+	double	dist;
 }				t_vector;
 
 typedef struct	s_rc
@@ -64,6 +67,8 @@ typedef struct	s_rc
 	t_intpos	step;
 	bool		hit;
 	int			side;
+	double		ray_dirDelta;
+	double		ray_dirAngle;
 }				t_rc;
 
 typedef struct	s_rndr
@@ -93,6 +98,13 @@ typedef struct	s_sprite
 	t_data			tex;
 	t_vector		pos;
 	double			dist;
+	double			perpDist;
+	size_t			height;
+	double			angle;
+	double			sp_dirDelta;
+	double			ray_spDelta;
+	int				draw_start;
+	int				draw_end;
 	struct s_sprite	*next;
 }				t_sprite;
 
@@ -133,6 +145,31 @@ void	ft_memdel(void *ptr)
 	}
 }
 
+void	*ft_memdup(void *ptr, size_t size)
+{
+	void	*new;
+
+	new = malloc(sizeof(size));
+	if (!new)
+		return (NULL);
+	printf("");
+	ft_memcpy(new, ptr, size);
+	return (new);
+}
+
+void	push_back(t_list *list, t_sprite *elem)
+{
+	t_sprite *iter;
+
+	iter = list->first;
+	while (iter && iter->next)
+		iter = iter->next;
+	if (list->first)
+		iter->next = elem;
+	else
+		list->first = elem;
+}
+
 void	my_mlx_pixel_put(t_data *data, int x, int y, int color)
 {
 	char	*dst;
@@ -152,6 +189,22 @@ unsigned int	get_color(t_data *data, int x, int y)
 void	clear_image(t_struct *cub)
 {
 	ft_bzero(cub->img.addr, HEIGHT * WIDTH * 4);
+}
+
+
+void	print_sprites_infos(t_list *sprites)
+{
+	t_sprite	*iter;
+	size_t		i;
+
+	iter = sprites->first;
+	i = 0;
+	while (iter)
+	{
+		printf("%zu : angle = %lf | dist = %lf | perpDist = %lf\n", i, iter->angle, iter->dist, iter->perpDist);
+		iter = iter->next;
+		i++;
+	}
 }
 
 void	draw_background(t_struct *cub)
@@ -238,6 +291,87 @@ void	wallX_calc(t_struct *cub)
     cub->rndr.wallX -= floor((cub->rndr.wallX));
 }
 
+int		is_sprite_int_fov(t_struct *cub, t_sprite *srite)
+{
+	
+}
+
+t_list	*get_sprites_to_draw(t_struct *cub)
+{
+	t_list		*list;
+	t_sprite	*new_elem;
+	t_sprite	*iter;
+
+	list = ft_calloc(1, sizeof(t_list));
+	if (!list)
+		return (NULL);
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		if (is_sprite_in_fov(cub, iter))
+		{
+			new_elem = ft_memdup(iter, sizeof(t_sprite));
+			new_elem->next = NULL;
+			push_back(list, new_elem);
+			list->size++;
+		}
+		iter = iter->next;
+	}	
+	return (list);
+}
+
+void	clear_list(t_list *list)
+{
+	t_sprite *iter;
+
+	iter = list->first;
+	while (iter)
+	{
+		ft_memdel(iter);
+		iter = iter->next;
+	}
+	free(list);
+}
+
+void	draw_sprites(t_struct *cub, size_t x)
+{
+	t_list		*list;
+	t_sprite	*iter;
+	size_t		i;
+	double		ratio;
+	t_vector	tex;
+
+	list = get_sprites_to_draw(cub);
+	iter = list->first;
+	while (iter)
+	{
+		i = iter->draw_start;
+		ratio = (double)iter->tex.w / (double)iter->height;
+		tex.x = (double)x * ratio;
+		tex.y = (double)i * ratio;
+		while (i < HEIGHT && i < (size_t)iter->draw_end)
+		{
+			my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, tex.x, tex.y));
+			i++;
+			tex.y += ratio;
+			tex.y -= (tex.y > HEIGHT);
+		}
+		iter = iter->next;
+	}
+	clear_list(list);
+}
+
+void	sprite_calcs(t_struct *cub)
+{
+	t_sprite	*iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter = iter->next;
+	}
+}
+
 void	draw_stripe(t_struct *cub, size_t x)
 {
 	wallX_calc(cub);
@@ -245,6 +379,7 @@ void	draw_stripe(t_struct *cub, size_t x)
 	draw_ceiling(cub, x);
 	draw_wall(cub, x);
 	draw_floor(cub, x);
+	draw_sprites(cub, x);
 
 }
 
@@ -329,6 +464,22 @@ void	walldim_calc(t_struct *cub)
 		cub->rndr.drawEnd = HEIGHT - 1;
 }
 
+void	spritedim_calc(t_sprite *sprite)
+{
+	sprite->height = (int)((double)HEIGHT / sprite->perpDist);
+	sprite->draw_start = -sprite->height / 2.0 + (double)HEIGHT / 2.0;
+	if(sprite->draw_start < 0)
+		sprite->draw_start = 0;
+	sprite->draw_end = sprite->height / 2.0 + HEIGHT / 2.0;
+	if(sprite->draw_end >= HEIGHT)
+		sprite->draw_end = HEIGHT - 1;
+}
+
+void	ray_dirAngleCalc(t_struct *cub)
+{
+	cub->rc.ray_dirAngle = acos(1 / cub->rc.ray.dist);
+}
+
 void	rc_calcs(t_struct *cub)
 {
 	cub->rc.map.x = (int)cub->rc.pos.x;
@@ -338,13 +489,16 @@ void	rc_calcs(t_struct *cub)
 	pre_dda_calc(cub);
 	dda(cub);
 	perpWall_calc(cub);
+	cub->rc.ray_dirDelta = cub->rc.camX * cub->rc.perpWallDist / 1;
 	walldim_calc(cub);
+//	perpSprite_calc(cub);
+	ray_dirAngleCalc(cub);
 	// PRINT ALL VARS HERE
-	if (cub->rc.camX > -0.3 && cub->rc.camX < 0.3)
+/*	if (cub->rc.camX > -0.3 && cub->rc.camX < 0.3)
 	{
-//		printf("camx = %lf | rayx = %lf | rayy = %lf | mapx = %d | mapy = %d | sideDistX = %lf | sideDistY = %lf | delaDistX = %lf | deltaDistY = %lf | perpWallDist = %lf | stepx = %d | stepy = %d | hit = %d | side = %d\n", cub->rc.camX, cub->rc.ray.x, cub->rc.ray.y, cub->rc.map.x, cub->rc.map.y, cub->rc.sideDist.x, cub->rc.sideDist.y, cub->rc.deltaDist.x, cub->rc.deltaDist.y, cub->rc.perpWallDist, cub->rc.step.x, cub->rc.step.y, cub->rc.hit, cub->rc.side);
-//		printf("lineheight = %d | drawStart = %d | drawEnd = %d\n", cub->rndr.lineHeight, cub->rndr.drawStart, cub->rndr.drawEnd);
-	}
+		printf("camx = %lf | rayx = %lf | rayy = %lf | mapx = %d | mapy = %d | sideDistX = %lf | sideDistY = %lf | delaDistX = %lf | deltaDistY = %lf | perpWallDist = %lf | stepx = %d | stepy = %d | hit = %d | side = %d\n", cub->rc.camX, cub->rc.ray.x, cub->rc.ray.y, cub->rc.map.x, cub->rc.map.y, cub->rc.sideDist.x, cub->rc.sideDist.y, cub->rc.deltaDist.x, cub->rc.deltaDist.y, cub->rc.perpWallDist, cub->rc.step.x, cub->rc.step.y, cub->rc.hit, cub->rc.side);
+		printf("lineheight = %d | drawStart = %d | drawEnd = %d\n", cub->rndr.lineHeight, cub->rndr.drawStart, cub->rndr.drawEnd);
+	}*/
 }
 
 
@@ -395,6 +549,22 @@ void	cam_calc(t_struct *cub, size_t x)
 	cub->rc.camX = 2.0 * (double)x / (double)(WIDTH) - 1.0; //x-coordinate in camera space
 	cub->rc.ray.y = cub->rc.dir.y + cub->rc.plane.y * cub->rc.camX;
 	cub->rc.ray.x = cub->rc.dir.x + cub->rc.plane.x * cub->rc.camX;
+	cub->rc.ray.dist = sqrt(pow(cub->rc.ray.x, 2) + pow(cub->rc.ray.y, 2));
+}
+
+void	ray_sp_dist_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		if (iter->angle < cub->rc.ray_dirAngle)
+			iter->ray_spDelta = fabs(fabs(cub->rc.ray_dirDelta) - fabs(iter->sp_dirDelta));
+		else
+			iter->ray_spDelta = cub->rc.ray_dirDelta + iter->sp_dirDelta;
+		iter = iter->next;
+	}
 }
 
 void	ray_casting(t_struct *cub)
@@ -402,12 +572,14 @@ void	ray_casting(t_struct *cub)
 	size_t	i;
 
 	plane_calc(cub);
+//	sp_delta_dir_calc(cub);
 	i = 0;
 	while (i < WIDTH)
 	{
 		//printf("posx = %lf | posy = %lf | dirx = %lf | diry = %lf | plnx = %lf | plny = %lf\n", cub->rc.pos.x, cub->rc.pos.y, cub->rc.dir.x, cub->rc.dir.y, cub->rc.plane.x, cub->rc.plane.y);
 		cam_calc(cub, i);
 		rc_calcs(cub);
+		ray_sp_dist_calc(cub);
 		draw_stripe(cub, i);
 		i++;
 	}
@@ -454,19 +626,6 @@ void	print_list(t_list *list)
 		printf("iter.pos.x = %lf | iter.pos.y = %lf\n", iter->pos.x, iter->pos.y);
 		iter = iter->next;
 	}
-}
-
-void	push_back(t_list *list, t_sprite *elem)
-{
-	t_sprite *iter;
-
-	iter = list->first;
-	while (iter && iter->next)
-		iter = iter->next;
-	if (list->first)
-		iter->next = elem;
-	else
-		list->first = elem;
 }
 
 void	remove_sprite(t_list *list, t_sprite *elem)
@@ -523,40 +682,47 @@ void	update_sprites(t_struct *cub)
 {
 	t_sprite *iter;
 	t_vector *pos;
+	t_vector a;
+	t_vector b;
 
 	iter = cub->sprites.first;
+	a.x = cub->rc.dir.x;
+	a.y = cub->rc.dir.y;
 	pos = &cub->rc.pos;
 	while (iter)
 	{
+		b.x = iter->pos.x - cub->rc.pos.x;
+		b.y = iter->pos.y - cub->rc.pos.y;
 		iter->dist = sqrt(pow(iter->pos.x - pos->x, 2) + pow(iter->pos.y - pos->y, 2));
+		iter->angle = acos((a.x * b.x + a.y * b.y) / (sqrt(pow(a.x, 2) + pow(a.y, 2)) * sqrt(pow(b.x, 2) + pow(b.y, 2))));;
+		iter->perpDist = iter->dist * cos(iter->angle);
+		spritedim_calc(iter);
+		iter->sp_dirDelta = sin(iter->angle) * iter->dist;
 		iter = iter->next;
 	}
 }
-/*
-void	perpSprites_calc(t_struct *cub)
+
+// cos(angle) = dist -->> perpDist = cos(angle) * dist;
+void	perpSprite_calc(t_struct *cub)
 {
 	t_sprite *iter;
 
 	iter = cub->sprites.first;
 	while (iter)
 	{
-		iter->dist
+		iter = iter->next;
 	}
-}*/
-
-void	draw_sprites(t_struct *cub)
-{
-	update_sprites(cub);
-	sort_sprites(cub);
-//	perpSprite_calc(cub);
 }
 
 int	render_frame(t_struct *cub)
 {
 	apply_moves(cub);
+	update_sprites(cub);
+	print_sprites_infos(&cub->sprites);
+	sort_sprites(cub);
 	clear_image(cub);
 	ray_casting(cub);
-	draw_sprites(cub);
+//	draw_sprites(cub);
 	mlx_put_image_to_window(cub->mlx, cub->win, cub->img.img, 0, 0);
 	return (0);
 }
@@ -677,20 +843,6 @@ void	destroy_sprites(t_struct *cub)
 		tmp = iter->next;
 		ft_memdel(&iter);
 		iter = tmp;
-	}
-}
-
-void	print_sprites_infos(t_list *sprites)
-{
-	t_sprite	*iter;
-	size_t		i;
-
-	iter = sprites->first;
-	i = 0;
-	while (iter)
-	{
-		iter = iter->next;
-		i++;
 	}
 }
 
