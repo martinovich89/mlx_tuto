@@ -6,9 +6,10 @@
 #include <fcntl.h>
 #include <math.h>
 #include <stdbool.h>
+#include <string.h>
 
-#define WIDTH 1920
-#define HEIGHT 1080
+#define WIDTH 800
+#define HEIGHT 600
 
 #define MAP_WIDTH 20
 #define MAP_HEIGHT 20
@@ -50,7 +51,7 @@ typedef struct	s_intpos
 {
 	int	x;
 	int	y;
-}				t_intpos;
+}	t_intpos;
 
 typedef struct	s_vector
 {
@@ -58,7 +59,7 @@ typedef struct	s_vector
 	double	y;
 	t_pos	o;
 	double	dist;
-}				t_vector;
+}	t_vector;
 
 typedef struct	s_rc
 {
@@ -76,7 +77,7 @@ typedef struct	s_rc
 	int			side;
 	double		ray_dirDelta;
 	double		ray_dirAngle;
-}				t_rc;
+}	t_rc;
 
 typedef struct	s_rndr
 {
@@ -87,7 +88,7 @@ typedef struct	s_rndr
 	double	texX;
 	double	texY;
 	double	ratio;
-}				t_rndr;
+}	t_rndr;
 
 typedef struct	s_data
 {
@@ -98,7 +99,7 @@ typedef struct	s_data
 	int		endian;
 	int		w;
 	int		h;
-}				t_data;
+}	t_data;
 
 typedef struct	s_sprite
 {
@@ -114,13 +115,13 @@ typedef struct	s_sprite
 	int				draw_end;
 	int				spriteX;
 	struct s_sprite	*next;
-}				t_sprite;
+}	t_sprite;
 
 typedef struct	s_list
 {
 	t_sprite	*first;
 	size_t		size;
-}				t_list;
+}	t_list;
 
 typedef struct	s_struct
 {
@@ -139,7 +140,7 @@ typedef struct	s_struct
 	t_list		sorted_sprites;
 	t_data		tex;
 	t_rndr		rndr;
-}				t_struct;
+}	t_struct;
 
 void	ft_memdel(void *ptr)
 {
@@ -160,8 +161,8 @@ void	*ft_memdup(void *ptr, size_t size)
 	new = ft_calloc(1, sizeof(size));
 	if (!new)
 		return (NULL);
-	printf("%p | %p | %zu\n", new, ptr, size);
-	ft_memcpy(new, ptr, size);
+//	printf("%p | %p | %zu\n", new, ptr, size);
+	*(char *)new = *(char *)ptr;
 	return (new);
 }
 
@@ -172,10 +173,14 @@ void	push_back(t_list *list, t_sprite *elem)
 	iter = list->first;
 	while (iter && iter->next)
 		iter = iter->next;
-	if (list->first)
+	if (iter)
+	{
 		iter->next = elem;
+	}
 	else
+	{
 		list->first = elem;
+	}
 }
 
 void	my_mlx_pixel_put(t_data *data, int x, int y, int color)
@@ -310,6 +315,9 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 	t_sprite	*new_elem;
 	t_sprite	*iter;
 
+	(void)new_elem;
+	(void)iter;
+	new_elem = NULL;
 	list = ft_calloc(1, sizeof(t_list));
 	if (!list)
 		return (NULL);
@@ -318,9 +326,14 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 	{
 		if (iter->ray_spDelta < SPRITE_THEORETICAL_WIDTH / 2 && iter->perpDist > MIN_SPRITE_DRAW_RANGE)
 		{
-			new_elem = ft_memdup(iter, sizeof(t_sprite));
+			// new_elem = (t_sprite *)ft_memdup(iter, sizeof(t_sprite));
+			new_elem = (t_sprite *)malloc(sizeof(t_sprite));
+			if (new_elem == NULL)
+				return (list);
+			printf("%p | %p\n", new_elem, iter);
 			new_elem->next = NULL;
 			push_back(list, new_elem);
+			printf("LOL = %p | %p\n", iter, new_elem);
 			list->size++;
 		}
 		iter = iter->next;
@@ -331,12 +344,14 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 void	clear_list(t_list *list)
 {
 	t_sprite *iter;
+	t_sprite *tmp;
 
 	iter = list->first;
 	while (iter)
 	{
-		ft_memdel(iter);
-		iter = iter->next;
+		tmp = iter;
+		iter = tmp->next;
+		ft_memdel(&tmp);
 	}
 	free(list);
 }
@@ -350,6 +365,11 @@ void	draw_sprites(t_struct *cub, size_t x)
 	double		texY;
 
 	list = get_sprites_to_draw(cub);
+	if (!list)
+	{
+		printf("OHMEGALUL\n");
+		return ;
+	}
 	iter = list->first;
 	while (iter)
 	{
@@ -395,7 +415,6 @@ void	draw_stripe(t_struct *cub, size_t x)
 	draw_floor(cub, x);
 	spriteX_calc(cub);
 	draw_sprites(cub, x);
-
 }
 
 void	rotation(t_vector *dir, double angle)
@@ -821,7 +840,6 @@ int	add_sprite(t_list *sprites, size_t x, size_t y)
 		init_sprite_list(sprites, x, y);
 	else
 		pushback_sprite(sprites, x, y);
-	sprites->size++;
 	return (0);
 }
 
@@ -868,6 +886,10 @@ int main(void)
 	// INIT MY STRUCT
 	init_vars(&cub);
 	set_sprites(&cub);
+	// t_sprite *coucou = ft_memdup((void *)cub.sprites.first, sizeof(t_sprite));
+	// free(coucou);
+	// destroy_sprites(&cub);
+	// return (0);
 	print_sprites_infos(&cub.sprites);
 
 	// INIT MLX

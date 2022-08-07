@@ -20,17 +20,20 @@ void	*ft_memcpy(void *dst, const void *src, size_t n)
 	size_t	i;
 
 
-	printf("hello\n");
+	printf("n = %zu\n", n);
 	if (n == 0 || dst == src)
 		return (dst);
 	d = (char *)dst;
 	s = (char *)src;
+	(void)d;
+	(void)s;
 	i = 0;
 	while (i < n)
 	{
-		printf("%x\n", d[8]);
-		printf("%zu | %x\n", i, s[i]);
-		d[i] = s[i];
+		//printf("src : %x\n", s[i]);
+		printf("dst : %x\n", d[i]);
+//		printf("%zu | %x\n", i, s[i]);
+		// d[i] = s[i];
 		i++;
 	}
 	return (dst);
