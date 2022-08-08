@@ -18,6 +18,8 @@
 
 #define PI 3.1415926535
 
+#define S_SPRITE "./textures/toto.xpm"
+
 char	map[MAP_HEIGHT][MAP_WIDTH] = {
 	{'1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
@@ -114,6 +116,7 @@ typedef struct	s_sprite
 	int				draw_start;
 	int				draw_end;
 	int				spriteX;
+	char			type;
 	struct s_sprite	*next;
 }	t_sprite;
 
@@ -326,14 +329,14 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 	{
 		if (iter->ray_spDelta < SPRITE_THEORETICAL_WIDTH / 2 && iter->perpDist > MIN_SPRITE_DRAW_RANGE)
 		{
-			// new_elem = (t_sprite *)ft_memdup(iter, sizeof(t_sprite));
+			//new_elem = (t_sprite *)ft_memdup(iter, sizeof(t_sprite));
 			new_elem = (t_sprite *)malloc(sizeof(t_sprite));
 			if (new_elem == NULL)
 				return (list);
 			printf("%p | %p\n", new_elem, iter);
 			new_elem->next = NULL;
-			push_back(list, new_elem);
 			printf("LOL = %p | %p\n", iter, new_elem);
+			push_back(list, new_elem);
 			list->size++;
 		}
 		iter = iter->next;
@@ -843,7 +846,17 @@ int	add_sprite(t_list *sprites, size_t x, size_t y)
 	return (0);
 }
 
-void	set_sprites(t_struct *cub)
+t_sprite *last_sprite(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter->next)
+		iter = iter->next;
+	return (iter);
+}
+
+void	set_sprite_list(t_struct *cub)
 {
 	size_t	i;
 	size_t	j;
@@ -857,6 +870,7 @@ void	set_sprites(t_struct *cub)
 			if (map[i][j] == 'S')
 			{
 				add_sprite(&cub->sprites, j, i);
+//				last_sprite(&cub->sprites)->type = map[i][j];
 				map[i][j] = '0';
 			}
 			j++;
@@ -864,6 +878,19 @@ void	set_sprites(t_struct *cub)
 		i++;
 	}
 }
+/*
+void	init_sprites(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		if (iter->type == 'S')
+			iter->tex.img = mlx_xpm_file_to_image(S_SPRITE);
+		iter = iter->next;
+	}
+}*/
 
 void	destroy_sprites(t_struct *cub)
 {
@@ -885,7 +912,7 @@ int main(void)
 
 	// INIT MY STRUCT
 	init_vars(&cub);
-	set_sprites(&cub);
+	set_sprite_list(&cub);
 	// t_sprite *coucou = ft_memdup((void *)cub.sprites.first, sizeof(t_sprite));
 	// free(coucou);
 	// destroy_sprites(&cub);
@@ -899,6 +926,7 @@ int main(void)
 	cub.img.addr = mlx_get_data_addr(cub.img.img, &cub.img.bits_per_pixel, &cub.img.line_length, &cub.img.endian);
 	cub.tex.img = mlx_xpm_file_to_image(cub.mlx, "./textures/wall.xpm", &cub.tex.w, &cub.tex.h);
 	cub.tex.addr = mlx_get_data_addr(cub.tex.img, &cub.tex.bits_per_pixel, &cub.tex.line_length, &cub.tex.endian);
+	//init_sprites(&cub);
 
 	// SETUP HOOKS
 	mlx_hook(cub.win, 2, 1L<<0, keypress, &cub);
