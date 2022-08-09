@@ -16,6 +16,8 @@
 #define SPRITE_THEORETICAL_WIDTH 1
 #define MIN_SPRITE_DRAW_RANGE 0.05
 
+#define S_SPRITE "textures/toto.xpm"
+
 #define PI 3.1415926535
 
 char	map[MAP_HEIGHT][MAP_WIDTH] = {
@@ -113,7 +115,8 @@ typedef struct	s_sprite
 	double			ray_spDelta;
 	int				draw_start;
 	int				draw_end;
-	int				spriteX;
+	double			spriteX;
+	char			type;
 	struct s_sprite	*next;
 }	t_sprite;
 
@@ -330,10 +333,9 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 			new_elem = (t_sprite *)malloc(sizeof(t_sprite));
 			if (new_elem == NULL)
 				return (list);
-			printf("%p | %p\n", new_elem, iter);
+			*new_elem = *iter;
 			new_elem->next = NULL;
 			push_back(list, new_elem);
-			printf("LOL = %p | %p\n", iter, new_elem);
 			list->size++;
 		}
 		iter = iter->next;
@@ -366,13 +368,11 @@ void	draw_sprites(t_struct *cub, size_t x)
 
 	list = get_sprites_to_draw(cub);
 	if (!list)
-	{
-		printf("OHMEGALUL\n");
 		return ;
-	}
 	iter = list->first;
 	while (iter)
 	{
+		printf("%d | %d\n", iter->draw_start, iter->draw_end);
 		i = iter->draw_start;
 		ratio = (double)iter->tex.w / (double)iter->height;
 		texY = (double)i * ratio;
@@ -399,9 +399,10 @@ void	spriteX_calc(t_struct *cub)
 	{
 		left = (iter->pos.y - cub->rc.pos.y)*(cub->rc.ray.x) > (iter->pos.x - cub->rc.pos.x)*(cub->rc.ray.y);
 		if (left)
-			iter->spriteX = 0.5 * iter->tex.w - iter->ray_spDelta;
+			iter->spriteX = 0.5 * (double)iter->tex.w - iter->ray_spDelta;
 		else
-			iter->spriteX = 0.5 * iter->tex.w + iter->ray_spDelta;
+			iter->spriteX = 0.5 * (double)iter->tex.w + iter->ray_spDelta;
+		printf("spriteX = %d | %lf\n", iter->spriteX, iter->ray_spDelta);
 		iter = iter->next;
 	}
 }
@@ -501,7 +502,8 @@ void	walldim_calc(t_struct *cub)
 void	spritedim_calc(t_sprite *sprite)
 {
 	sprite->height = (int)((double)HEIGHT / sprite->perpDist);
-	sprite->draw_start = -sprite->height / 2.0 + (double)HEIGHT / 2.0;
+	printf("height = %zu | %lf\n", sprite->height, sprite->perpDist);
+	sprite->draw_start = (double)HEIGHT / 2.0 + - (double)sprite->height / 2.0;
 	if(sprite->draw_start < 0)
 		sprite->draw_start = 0;
 	sprite->draw_end = sprite->height / 2.0 + HEIGHT / 2.0;
@@ -752,7 +754,7 @@ int	render_frame(t_struct *cub)
 {
 	apply_moves(cub);
 	update_sprites(cub);
-	print_sprites_infos(&cub->sprites);
+//	print_sprites_infos(&cub->sprites);
 	sort_sprites(cub);
 	clear_image(cub);
 	ray_casting(cub);
@@ -843,6 +845,18 @@ int	add_sprite(t_list *sprites, size_t x, size_t y)
 	return (0);
 }
 
+t_sprite	*last_sprite(t_list *list)
+{
+	t_sprite *iter;
+
+	iter = list->first;
+	while (iter->next)
+	{
+		iter = iter->next;
+	}
+	return (iter);
+}
+
 void	set_sprites(t_struct *cub)
 {
 	size_t	i;
@@ -857,11 +871,27 @@ void	set_sprites(t_struct *cub)
 			if (map[i][j] == 'S')
 			{
 				add_sprite(&cub->sprites, j, i);
+				last_sprite(&cub->sprites)->type = map[i][j];
 				map[i][j] = '0';
 			}
 			j++;
 		}
 		i++;
+	}
+}
+
+
+void	init_sprites(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter->tex.img = cub->tex.img;
+		iter->tex.addr = cub->tex.addr;
+		printf("POST_SPRITE_INIT : %p | %p\n", iter->tex.img, iter->tex.addr);
+		iter = iter->next;
 	}
 }
 
@@ -874,6 +904,7 @@ void	destroy_sprites(t_struct *cub)
 	while (iter)
 	{
 		tmp = iter->next;
+//		mlx_destroy_image(cub->mlx, iter->tex.img);
 		ft_memdel(&iter);
 		iter = tmp;
 	}
@@ -890,7 +921,7 @@ int main(void)
 	// free(coucou);
 	// destroy_sprites(&cub);
 	// return (0);
-	print_sprites_infos(&cub.sprites);
+//	print_sprites_infos(&cub.sprites);
 
 	// INIT MLX
 	cub.mlx = mlx_init();
@@ -899,6 +930,7 @@ int main(void)
 	cub.img.addr = mlx_get_data_addr(cub.img.img, &cub.img.bits_per_pixel, &cub.img.line_length, &cub.img.endian);
 	cub.tex.img = mlx_xpm_file_to_image(cub.mlx, "./textures/wall.xpm", &cub.tex.w, &cub.tex.h);
 	cub.tex.addr = mlx_get_data_addr(cub.tex.img, &cub.tex.bits_per_pixel, &cub.tex.line_length, &cub.tex.endian);
+	init_sprites(&cub);
 
 	// SETUP HOOKS
 	mlx_hook(cub.win, 2, 1L<<0, keypress, &cub);
