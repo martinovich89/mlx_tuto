@@ -162,6 +162,8 @@ void	cam_calc(t_struct *cub, size_t x)
 	cub->rc.camX = 2.0 * (double)x / (double)(WIDTH) - 1.0; //x-coordinate in camera space
 	cub->rc.ray.y = cub->rc.dir.y + cub->rc.plane.y * cub->rc.camX;
 	cub->rc.ray.x = cub->rc.dir.x + cub->rc.plane.x * cub->rc.camX;
+	cub->rc.ray.o.x = cub->rc.pos.x;
+	cub->rc.ray.o.y = cub->rc.pos.y;
 }
 
 void	sp_dist_calc(t_struct *cub, t_sprite *sprite)
@@ -225,10 +227,10 @@ int	both_sp_and_ray_same_side_of_dir(t_struct *cub, t_sprite *sprite)
 	ray_coord = cub->rc.ray;
 	vector_add(&ray_coord, &cub->rc.pos);
 	// Checking whether second arg is left from first arg
-	sp_left = is_left_side(&cub->rc.dir, &sprite->pos);
+	sp_left	= is_left_side(&cub->rc.dir, &sprite->pos);
 	ray_left = is_left_side(&cub->rc.dir, &ray_coord);
-	printf("sp_left = %d\n", sp_left);
-	printf("ray_left = %d\n", ray_left);
+	printf("sp_left		= %d\n", sp_left);
+	printf("ray_left	= %d\n", ray_left);
 	// Solving current func return
 	if (sp_left == ray_left)
 		return (1);
@@ -241,19 +243,14 @@ void	sp_rayDelta_calc(t_struct *cub, t_sprite *sprite)
 		sprite->sp_rayDelta = fabs(fabs(cub->rc.ray_dirDelta) - fabs(sprite->sp_dirDelta));
 	else
 		sprite->sp_rayDelta = fabs(fabs(cub->rc.ray_dirDelta) + fabs(sprite->sp_dirDelta));
-	sprite = sprite->next;
 }
 
 void	spriteX_calc(t_struct *cub, t_sprite *sprite)
 {
-	int left;
-
-	left = (sprite->pos.y - cub->rc.pos.y)*(cub->rc.ray.x) > (sprite->pos.x - cub->rc.pos.x)*(cub->rc.ray.y);
-	if (left)
-		sprite->spriteX = 0.5 * (double)sprite->tex.w - sprite->sp_rayDelta;
+	if (is_left_side(&cub->rc.ray, &sprite->pos))
+		sprite->spriteX = (0.5 - sprite->sp_rayDelta) * 64;
 	else
-		sprite->spriteX = 0.5 * (double)sprite->tex.w + sprite->sp_rayDelta;
-	sprite = sprite->next;
+		sprite->spriteX = (0.5 + sprite->sp_rayDelta) * 64;
 }
 
 int main(void)
@@ -272,37 +269,45 @@ int main(void)
 	cub.rc.dir.o.x = cub.rc.pos.x;
 	cub.rc.dir.o.y = cub.rc.pos.y;
 	rotation(&cub.rc.dir, PI / 4);
-	rotation(&cub.rc.dir, PI / 8);
 	printf("%lf | %lf\n", cub.rc.dir.x, cub.rc.dir.y);
+
+	// PRE RAY CASTING
 
 	cub.rc.plane.x = cub.rc.dir.x;
 	cub.rc.plane.y = cub.rc.dir.y;
 	rotation(&cub.rc.plane, PI / 2);
 
-	cam_calc(&cub, 0);
-	printf("camX = %lf\n", cub.rc.camX);
+	sp_angle_calc(&cub, &sprite);
+	printf("angle		= %lf\n", sprite.angle);
 
 	sp_dist_calc(&cub, &sprite);
-	printf("dist = %lf\n", sprite.dist);
-
-	sp_angle_calc(&cub, &sprite);
+	printf("dist		= %lf\n", sprite.dist);
 
 	sp_perpDist_calc(&sprite);
-	printf("perpDist = %lf\n", sprite.perpDist);
+	printf("perpDist	= %lf\n", sprite.perpDist);
 
 	sp_dim_calc(&sprite);
-	printf("%zu\n", sprite.height);
+	printf("height		= %zu\n", sprite.height);
 
 	sp_dirDelta_calc(&sprite);
-	printf("sp_dirDelta = %lf\n", sprite.sp_dirDelta);
+	printf("sp_dirDelta	= %lf\n", sprite.sp_dirDelta);
 
-	ray_dirDelta_calc(&cub, &sprite);
-	printf("ray_dirDelta = %lf\n", cub.rc.ray_dirDelta);
+	// RAY CASTING
 
-	sp_rayDelta_calc(&cub, &sprite);
-	printf("sp_rayDelta = %lf\n", sprite.sp_rayDelta);
+	for (int i = 0; i < WIDTH; i++)
+	{
+		printf("----------------------------------\n");
+		cam_calc(&cub, i);
+		printf("camX		= %lf\n", cub.rc.camX);
 
-	spriteX_calc(&cub, &sprite);
+		ray_dirDelta_calc(&cub, &sprite);
+		printf("ray_dirDelta	= %lf\n", cub.rc.ray_dirDelta);
 
+		sp_rayDelta_calc(&cub, &sprite);
+		printf("sp_rayDelta	= %lf\n", sprite.sp_rayDelta);
+
+		spriteX_calc(&cub, &sprite);
+		printf("spriteX		= %lf\n", sprite.spriteX);
+	}
 	return (0);
 }

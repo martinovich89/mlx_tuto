@@ -27,11 +27,11 @@ char	map[MAP_HEIGHT][MAP_WIDTH] = {
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
-	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', 'S', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
+	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', 'S', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
-	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
 	{'1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'},
@@ -112,7 +112,7 @@ typedef struct	s_sprite
 	size_t			height;
 	double			angle;
 	double			sp_dirDelta;
-	double			ray_spDelta;
+	double			sp_rayDelta;
 	int				draw_start;
 	int				draw_end;
 	double			spriteX;
@@ -207,7 +207,6 @@ void	clear_image(t_struct *cub)
 	ft_bzero(cub->img.addr, HEIGHT * WIDTH * 4);
 }
 
-
 void	print_sprites_infos(t_list *sprites)
 {
 	t_sprite	*iter;
@@ -223,23 +222,15 @@ void	print_sprites_infos(t_list *sprites)
 	}
 }
 
-void	draw_background(t_struct *cub)
+int	is_left_side(t_vector *dir, t_vector *pos)
 {
-	size_t	i;
-	size_t	j;
+	return ((pos->y - dir->o.y)*(dir->x) > (pos->x - dir->o.x)*(dir->y));
+}
 
-	i = 0;
-	while (i < HEIGHT)
-	{
-		j = 0;
-		while (j < WIDTH)
-		{
-			my_mlx_pixel_put(&cub->img, j, i, cub->background);
-			j++;
-		}
-		i++;
-	}
-
+void	vector_add(t_vector *dst, t_vector *to_add)
+{
+	dst->x += to_add->x;
+	dst->y += to_add->y;
 }
 
 void	draw_ceiling(t_struct *cub, size_t x)
@@ -327,9 +318,8 @@ t_list	*get_sprites_to_draw(t_struct *cub)
 	iter = cub->sprites.first;
 	while (iter)
 	{
-		if (iter->ray_spDelta < SPRITE_THEORETICAL_WIDTH / 2 && iter->perpDist > MIN_SPRITE_DRAW_RANGE)
+		if (iter->sp_rayDelta < (double)SPRITE_THEORETICAL_WIDTH / 2.0 && iter->perpDist > (double)MIN_SPRITE_DRAW_RANGE)
 		{
-			// new_elem = (t_sprite *)ft_memdup(iter, sizeof(t_sprite));
 			new_elem = (t_sprite *)malloc(sizeof(t_sprite));
 			if (new_elem == NULL)
 				return (list);
@@ -372,13 +362,13 @@ void	draw_sprites(t_struct *cub, size_t x)
 	iter = list->first;
 	while (iter)
 	{
-		printf("%d | %d\n", iter->draw_start, iter->draw_end);
 		i = iter->draw_start;
 		ratio = (double)iter->tex.w / (double)iter->height;
 		texY = (double)i * ratio;
 		while (i < HEIGHT && i < (size_t)iter->draw_end)
 		{
-			my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, iter->spriteX, texY));
+			if (iter->spriteX > 0 && iter->spriteX < iter->tex.w)
+				my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, iter->spriteX, texY));
 			i++;
 			texY += ratio;
 			texY -= (texY > HEIGHT);
@@ -389,6 +379,7 @@ void	draw_sprites(t_struct *cub, size_t x)
 }
 
 // Thanks to -->> https://alienryderflex.com/point_left_of_ray/ <<-- for the formula
+/*
 void	spriteX_calc(t_struct *cub)
 {
 	t_sprite	*iter;
@@ -399,13 +390,14 @@ void	spriteX_calc(t_struct *cub)
 	{
 		left = (iter->pos.y - cub->rc.pos.y)*(cub->rc.ray.x) > (iter->pos.x - cub->rc.pos.x)*(cub->rc.ray.y);
 		if (left)
-			iter->spriteX = 0.5 * (double)iter->tex.w - iter->ray_spDelta;
+			iter->spriteX = 0.5 * (double)iter->tex.w - iter->sp_rayDelta;
 		else
-			iter->spriteX = 0.5 * (double)iter->tex.w + iter->ray_spDelta;
-		printf("spriteX = %d | %lf\n", iter->spriteX, iter->ray_spDelta);
+			iter->spriteX = 0.5 * (double)iter->tex.w + iter->sp_rayDelta;
+		printf("spriteX = %d | %lf\n", iter->spriteX, iter->sp_rayDelta);
 		iter = iter->next;
 	}
 }
+*/
 
 void	draw_stripe(t_struct *cub, size_t x)
 {
@@ -414,7 +406,6 @@ void	draw_stripe(t_struct *cub, size_t x)
 	draw_ceiling(cub, x);
 	draw_wall(cub, x);
 	draw_floor(cub, x);
-	spriteX_calc(cub);
 	draw_sprites(cub, x);
 }
 
@@ -499,6 +490,7 @@ void	walldim_calc(t_struct *cub)
 		cub->rndr.drawEnd = HEIGHT - 1;
 }
 
+/*
 void	spritedim_calc(t_sprite *sprite)
 {
 	sprite->height = (int)((double)HEIGHT / sprite->perpDist);
@@ -515,6 +507,7 @@ void	ray_dirAngleCalc(t_struct *cub)
 {
 	cub->rc.ray_dirAngle = acos(1 / cub->rc.ray.dist);
 }
+*/
 
 void	rc_calcs(t_struct *cub)
 {
@@ -525,16 +518,7 @@ void	rc_calcs(t_struct *cub)
 	pre_dda_calc(cub);
 	dda(cub);
 	perpWall_calc(cub);
-	cub->rc.ray_dirDelta = cub->rc.camX * cub->rc.perpWallDist / 1;
 	walldim_calc(cub);
-//	perpSprite_calc(cub);
-	ray_dirAngleCalc(cub);
-	// PRINT ALL VARS HERE
-/*	if (cub->rc.camX > -0.3 && cub->rc.camX < 0.3)
-	{
-		printf("camx = %lf | rayx = %lf | rayy = %lf | mapx = %d | mapy = %d | sideDistX = %lf | sideDistY = %lf | delaDistX = %lf | deltaDistY = %lf | perpWallDist = %lf | stepx = %d | stepy = %d | hit = %d | side = %d\n", cub->rc.camX, cub->rc.ray.x, cub->rc.ray.y, cub->rc.map.x, cub->rc.map.y, cub->rc.sideDist.x, cub->rc.sideDist.y, cub->rc.deltaDist.x, cub->rc.deltaDist.y, cub->rc.perpWallDist, cub->rc.step.x, cub->rc.step.y, cub->rc.hit, cub->rc.side);
-		printf("lineheight = %d | drawStart = %d | drawEnd = %d\n", cub->rndr.lineHeight, cub->rndr.drawStart, cub->rndr.drawEnd);
-	}*/
 }
 
 
@@ -580,27 +564,215 @@ void	plane_calc(t_struct *cub)
 	rotation(&cub->rc.plane, PI / 2);
 }
 
-void	cam_calc(t_struct *cub, size_t x)
+void	cam_calcs(t_struct *cub, size_t x)
 {
 	cub->rc.camX = 2.0 * (double)x / (double)(WIDTH) - 1.0; //x-coordinate in camera space
 	cub->rc.ray.y = cub->rc.dir.y + cub->rc.plane.y * cub->rc.camX;
 	cub->rc.ray.x = cub->rc.dir.x + cub->rc.plane.x * cub->rc.camX;
+	cub->rc.ray.o.x = cub->rc.pos.x;
+	cub->rc.ray.o.y = cub->rc.pos.y;
 	cub->rc.ray.dist = sqrt(pow(cub->rc.ray.x, 2) + pow(cub->rc.ray.y, 2));
 }
 
-void	ray_sp_dist_calc(t_struct *cub)
+void	sp_dist_calc(t_struct *cub)
+{
+	t_sprite *iter;
+	t_vector pos;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		pos = cub->rc.pos;
+		iter->dist = sqrt(pow(iter->pos.x - pos.x, 2) + pow(iter->pos.y - pos.y, 2));
+		iter = iter->next;
+	}
+}
+
+void	sp_angle_calc(t_struct *cub)
+{
+	t_sprite *iter;
+	t_vector a;
+	t_vector b;
+
+	a = cub->rc.dir;
+	b = cub->rc.pos;
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter->angle = acos((a.x * b.x + a.y * b.y) / (sqrt(pow(a.x, 2) + pow(a.y, 2)) * sqrt(pow(b.x, 2) + pow(b.y, 2))));;
+		iter = iter->next;
+	}
+}
+
+void	sp_perpDist_calc(t_struct *cub)
 {
 	t_sprite *iter;
 
 	iter = cub->sprites.first;
 	while (iter)
 	{
-		if (iter->angle < cub->rc.ray_dirAngle)
-			iter->ray_spDelta = fabs(fabs(cub->rc.ray_dirDelta) - fabs(iter->sp_dirDelta));
-		else
-			iter->ray_spDelta = cub->rc.ray_dirDelta + iter->sp_dirDelta;
+		iter->perpDist = iter->dist * cos(iter->angle);
 		iter = iter->next;
 	}
+}
+
+
+void	sp_dim_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter->height = (int)((double)HEIGHT / iter->perpDist);
+		iter->draw_start = (double)HEIGHT / 2.0 + - (double)iter->height / 2.0;
+		if(iter->draw_start < 0)
+			iter->draw_start = 0;
+		iter->draw_end = iter->height / 2.0 + HEIGHT / 2.0;
+		if(iter->draw_end >= HEIGHT)
+			iter->draw_end = HEIGHT - 1;
+		iter = iter->next;
+	}
+}
+
+void	sp_dirDelta_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		iter->sp_dirDelta = sin(iter->angle) * iter->dist;
+		iter = iter->next;
+	}
+}
+
+void	sp_calc_debug(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		printf("-------------------------------\n");
+		printf("sp_dist = %lf | sp_angle = %lf | sp_perpDist = %lf\n", iter->dist, iter->angle, iter->perpDist);
+		printf("sp_dim = %zu\n", iter->height);
+		printf("sp_dirDelta = %lf\n", iter->sp_dirDelta);
+		iter = iter->next;
+	}
+}
+
+void	sprite_rc_calcs_debug(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	// while (iter)
+	// {
+		// printf("------------------------------\n");
+		// printf("sp_dist = %lf | sp_angle = %lf | sp_perpDist = %lf\n", iter->dist, iter->angle, iter->perpDist);
+		// printf("sp_dim = %zu\n", iter->height);
+		// printf("sp_dirDelta = %lf\n", iter->sp_dirDelta);
+		// printf("ray_dirDelta = %lf\n", cub->rc.ray_dirDelta);
+		// printf("sp_rayDelta = %lf\n", iter->sp_rayDelta);
+		// printf("spriteX = %lf\n", iter->spriteX);
+		// iter = iter->next;
+	// }
+
+	if (iter)
+	{
+		printf("------------------------------\n");
+		printf("sp_dist = %lf | sp_angle = %lf | sp_perpDist = %lf\n", iter->dist, iter->angle, iter->perpDist);
+		printf("sp_dim = %zu\n", iter->height);
+		printf("sp_dirDelta = %lf\n", iter->sp_dirDelta);
+		printf("ray_dirDelta = %lf\n", cub->rc.ray_dirDelta);
+		printf("sp_rayDelta = %lf\n", iter->sp_rayDelta);
+		printf("is_left = %d\n", is_left_side(&cub->rc.ray, &iter->pos));
+		printf("spriteX = %lf\n", iter->spriteX);
+		printf("ray.x = %lf | ray.y = %lf\n", cub->rc.ray.x, cub->rc.ray.y);
+		printf("iter->pos.x = %lf | iter->pos.y = %lf\n", iter->pos.x, iter->pos.y);
+	}
+}
+
+void	sprite_calcs(t_struct *cub)
+{
+	sp_dist_calc(cub);
+	sp_angle_calc(cub);
+	sp_perpDist_calc(cub);
+	sp_dim_calc(cub);
+	sp_dirDelta_calc(cub);
+
+//	sp_calc_debug(cub);
+}
+
+void	ray_dirDelta_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		cub->rc.ray_dirDelta = cub->rc.camX * iter->perpDist / 1.0;
+		iter = iter->next;
+	}
+}
+
+// Here we have to adapt our t_vector objects to fit the "is_left_side()" parameters.
+int	both_sp_and_ray_same_side_of_dir(t_struct *cub, t_sprite *sprite)
+{
+	t_vector ray_coord;
+	int sp_left;
+	int ray_left;
+
+	// Adjusting ray coordinates
+	ray_coord = cub->rc.ray;
+	vector_add(&ray_coord, &cub->rc.pos);
+
+	// Checking whether second arg is left from first arg
+	sp_left	= is_left_side(&cub->rc.dir, &sprite->pos);
+	ray_left = is_left_side(&cub->rc.dir, &ray_coord);
+
+	// Solving current func return
+	if (sp_left == ray_left)
+		return (1);
+	return (0);
+}
+
+void	sp_rayDelta_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		if (both_sp_and_ray_same_side_of_dir(cub, iter))
+			iter->sp_rayDelta = fabs(fabs(cub->rc.ray_dirDelta) - fabs(iter->sp_dirDelta));
+		else
+			iter->sp_rayDelta = fabs(fabs(cub->rc.ray_dirDelta) + fabs(iter->sp_dirDelta));
+		iter = iter->next;
+	}
+}
+
+void	spriteX_calc(t_struct *cub)
+{
+	t_sprite *iter;
+
+	iter = cub->sprites.first;
+	while (iter)
+	{
+		if (is_left_side(&cub->rc.ray, &iter->pos))
+			iter->spriteX = (0.5 - iter->sp_rayDelta) * 64;
+		else
+			iter->spriteX = (0.5 + iter->sp_rayDelta) * 64;
+		iter = iter->next;
+	}
+}
+
+void	sprite_rc_calcs(t_struct *cub)
+{
+	ray_dirDelta_calc(cub);
+	sp_rayDelta_calc(cub);
+	spriteX_calc(cub);
 }
 
 void	ray_casting(t_struct *cub)
@@ -613,12 +785,15 @@ void	ray_casting(t_struct *cub)
 	while (i < WIDTH)
 	{
 		//printf("posx = %lf | posy = %lf | dirx = %lf | diry = %lf | plnx = %lf | plny = %lf\n", cub->rc.pos.x, cub->rc.pos.y, cub->rc.dir.x, cub->rc.dir.y, cub->rc.plane.x, cub->rc.plane.y);
-		cam_calc(cub, i);
+		cam_calcs(cub, i);
 		rc_calcs(cub);
-		ray_sp_dist_calc(cub);
+		sprite_rc_calcs(cub);
+		sprite_rc_calcs_debug(cub);
+		// sp_ray_dist_calc(cub);
 		draw_stripe(cub, i);
 		i++;
 	}
+	printf("-------------------\n");
 	// CHECK CAMPLANE VALUES
 }
 
@@ -714,6 +889,7 @@ void	sort_sprites(t_struct *cub)
 	cub->sorted_sprites.first = NULL;
 }
 
+/*
 void	update_sprites(t_struct *cub)
 {
 	t_sprite *iter;
@@ -737,6 +913,7 @@ void	update_sprites(t_struct *cub)
 		iter = iter->next;
 	}
 }
+*/
 
 // cos(angle) = dist -->> perpDist = cos(angle) * dist;
 void	perpSprite_calc(t_struct *cub)
@@ -753,7 +930,8 @@ void	perpSprite_calc(t_struct *cub)
 int	render_frame(t_struct *cub)
 {
 	apply_moves(cub);
-	update_sprites(cub);
+	sprite_calcs(cub);
+//	update_sprites(cub);
 //	print_sprites_infos(&cub->sprites);
 	sort_sprites(cub);
 	clear_image(cub);
@@ -768,7 +946,11 @@ void	init_vars(t_struct *cub)
 	ft_bzero(cub, sizeof(t_struct));
 	cub->rc.pos.x = 3.5;
 	cub->rc.pos.y = 3.5;
-	cub->rc.dir.y = -1;
+	cub->rc.dir.x = 1;
+	cub->rc.dir.y = 0;
+	rotation(&cub->rc.dir, PI / 2);
+	cub->rc.dir.o.x = cub->rc.pos.x;
+	cub->rc.dir.o.y = cub->rc.pos.y;
 }
 
 int	destroy_event(t_struct *cub)
@@ -890,7 +1072,7 @@ void	init_sprites(t_struct *cub)
 	{
 		iter->tex.img = cub->tex.img;
 		iter->tex.addr = cub->tex.addr;
-		printf("POST_SPRITE_INIT : %p | %p\n", iter->tex.img, iter->tex.addr);
+//		printf("POST_SPRITE_INIT : %p | %p\n", iter->tex.img, iter->tex.addr);
 		iter = iter->next;
 	}
 }
