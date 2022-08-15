@@ -364,14 +364,17 @@ void	draw_sprites(t_struct *cub, size_t x)
 	{
 		i = iter->draw_start;
 		ratio = (double)iter->tex.w / (double)iter->height;
-		texY = (double)i * ratio;
+		texY = ((double)iter->height - (double)HEIGHT) / 2.0 * ratio;
+		texY *= (texY > 0);
 		while (i < HEIGHT && i < (size_t)iter->draw_end)
 		{
 			if (iter->spriteX > 0 && iter->spriteX < iter->tex.w)
+			{
 				my_mlx_pixel_put(&cub->img, x, i, get_color(&iter->tex, iter->spriteX, texY));
+			}
 			i++;
 			texY += ratio;
-			texY -= (texY > HEIGHT);
+			texY -= (texY > HEIGHT - 1);
 		}
 		iter = iter->next;
 	}
@@ -788,12 +791,12 @@ void	ray_casting(t_struct *cub)
 		cam_calcs(cub, i);
 		rc_calcs(cub);
 		sprite_rc_calcs(cub);
-		sprite_rc_calcs_debug(cub);
+//		sprite_rc_calcs_debug(cub);
 		// sp_ray_dist_calc(cub);
 		draw_stripe(cub, i);
 		i++;
 	}
-	printf("-------------------\n");
+//	printf("-------------------\n");
 	// CHECK CAMPLANE VALUES
 }
 
@@ -948,7 +951,7 @@ void	init_vars(t_struct *cub)
 	cub->rc.pos.y = 3.5;
 	cub->rc.dir.x = 1;
 	cub->rc.dir.y = 0;
-	rotation(&cub->rc.dir, PI / 2);
+	rotation(&cub->rc.dir, PI / 4);
 	cub->rc.dir.o.x = cub->rc.pos.x;
 	cub->rc.dir.o.y = cub->rc.pos.y;
 }
@@ -1070,8 +1073,9 @@ void	init_sprites(t_struct *cub)
 	iter = cub->sprites.first;
 	while (iter)
 	{
-		iter->tex.img = cub->tex.img;
-		iter->tex.addr = cub->tex.addr;
+		// iter->tex.img = cub->tex.img;
+		// iter->tex.addr = cub->tex.addr;
+		iter->tex = cub->tex;
 //		printf("POST_SPRITE_INIT : %p | %p\n", iter->tex.img, iter->tex.addr);
 		iter = iter->next;
 	}
